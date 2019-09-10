@@ -1,7 +1,11 @@
 package com.hotdog.smartshop;
 
+import java.io.IOException;
 import java.util.ArrayList;
 
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.ParseException;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -13,10 +17,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @EnableAutoConfiguration
 public class SpringBoot {
-	public static ArrayList<hotDogMenu> HAND = new ArrayList<hotDogMenu>();
+	public static JSONArray HAND = new JSONArray();
+	public static FileContactor fc = new FileContactor();
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException, ParseException {
 		// TODO Auto-generated method stub
+		HAND = fc.readFile();
 		SpringApplication.run(SpringBoot.class, args);
 	}
 	
@@ -52,24 +58,43 @@ public class SpringBoot {
 	}
 
 	@RequestMapping(value = "/hungry/{pick}/order")
-    String orderHotDog(@PathVariable int pick) {
-        SpringBoot.HAND.add(HotDogMenuFactory.viewTheHotDog(pick));
+    String orderHotDog(@PathVariable int pick) throws IOException {
+		hotDogMenu select = HotDogMenuFactory.viewTheHotDog(pick);
+		JSONObject jo = new JSONObject();
+		jo.put("sauce", select.getSauce());
+		hotDog[] htd = select.getHd();
+		jo.put("price", select.getPrice());
+		jo.put("bread", select.getBread());
+		for(hotDog ht: htd) {
+			JSONObject joo = new JSONObject();
+			JSONObject jooo = new JSONObject();
+			jooo.put("inside", ht.getInside());
+			jooo.put("hotdog", ht.getHotdog());
+			joo.put("0", jooo);
+			jo.put("hd", joo);
+		}
+        SpringBoot.HAND.add(jo);
+        fc.writeToFile(HAND);
         return "Your hot dog is now in your hand.";
     }
 	
 	@RequestMapping(value = "/hand")
-	ArrayList<hotDogMenu> viewHand() {
-		return SpringBoot.HAND;
+	JSONArray viewHand() throws IOException, ParseException {
+		return fc.readFile();
 	}
 	
 	@RequestMapping(value = "/eat")
-	String eat() {
+	String eat() throws IOException, ParseException {
 		int total = 0;
-		for(hotDogMenu i : SpringBoot.HAND) {
-			total += i.getPrice();
+		JSONArray keep = fc.readFile();
+		for(Object i : keep) {
+			JSONObject k = (JSONObject) i;
+			long price = (Long) k.get("price");
+			total += price;
 		}
 		String text = "You eat the hot dog and run away without paying " + total + " baht";
 		SpringBoot.HAND.clear();
+		fc.writeToFile(HAND);
 		return text;
 	}
 }
